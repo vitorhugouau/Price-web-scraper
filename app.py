@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 import sqlite3
 import requests
 from bs4 import BeautifulSoup
@@ -34,6 +34,22 @@ def get_dados():
     dados = cursor.fetchall()
     conn.close()
     return dados
+
+def get_dados():
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco FROM historico_precos ORDER BY id DESC")
+    dados = cursor.fetchall()
+    conn.close()
+    return dados
+
+def get_dado(id):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco FROM historico_precos WHERE id = ?", (id,))
+    dado = cursor.fetchone()
+    conn.close()
+    return dado
 
 def scraper_e_inserir():
     url = 'https://www.mercadolivre.com.br/apple-watch-series-10-gps-caixa-preta-brilhante-de-aluminio-42-mm-pulseira-esportiva-preta-pm/p/MLB40694304'
@@ -87,11 +103,82 @@ def index():
     dados = get_dados()
     return render_template('index.html', dados=dados)
 
-@app.route('/atualizar', methods=['POST'])
-def atualizar():
-    thread = threading.Thread(target=scraper_e_inserir)
-    thread.start()
-    return jsonify({'mensagem': 'Atualização iniciada! Aguarde alguns segundos.'})
+@app.route('/add', methods=['GET', 'POST'])
+def add():
+    if request.method == 'POST':
+        data = request.form['data'] or datetime.now(pytz.timezone('America/Sao_Paulo')).strftime('%d/%m/%Y %H:%M:%S')
+        produto = request.form['produto']
+        caixa = request.form.get('caixa')
+        tamanho = request.form.get('tamanho')
+        pulseira = request.form.get('pulseira')
+        tamanho_pulseira = request.form.get('tamanho_pulseira')
+        preco = request.form['preco']
+
+        try:
+            preco = float(preco)
+        except ValueError:
+            flash('Preço inválido', 'danger')
+            return redirect(url_for('add'))
+
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("""
+        INSERT INTO historico_precos (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco))
+        conn.commit()
+        conn.close()
+
+        flash('Registro adicionado com sucesso!', 'success')
+        return redirect(url_for('index'))
+    return render_template('add_edit.html', action='Adicionar')
+
+@app.route('/edit/<int:id>', methods=['GET', 'POST'])
+def edit(id):
+    dado = get_dado(id)
+    if not dado:
+        flash('Registro não encontrado', 'danger')
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        data = request.form['data']
+        produto = request.form['produto']
+        caixa = request.form.get('caixa')
+        tamanho = request.form.get('tamanho')
+        pulseira = request.form.get('pulseira')
+        tamanho_pulseira = request.form.get('tamanho_pulseira')
+        preco = request.form['preco']
+
+        try:
+            preco = float(preco)
+        except ValueError:
+            flash('Preço inválido', 'danger')
+            return redirect(url_for('edit', id=id))
+
+        conn = sqlite3.connect(db_file)
+        cursor = conn.cursor()
+        cursor.execute("""
+        UPDATE historico_precos
+        SET data=?, produto=?, caixa=?, tamanho=?, pulseira=?, tamanho_pulseira=?, preco=?
+        WHERE id=?
+        """, (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco, id))
+        conn.commit()
+        conn.close()
+
+        flash('Registro atualizado com sucesso!', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('add_edit.html', action='Editar', dado=dado)
+
+@app.route('/delete/<int:id>', methods=['POST'])
+def delete(id):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM historico_precos WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    flash('Registro deletado com sucesso!', 'success')
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     criar_tabela()

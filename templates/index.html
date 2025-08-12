@@ -16,7 +16,6 @@
             min-height: 100vh;
             margin: 0;
             padding-top: 4.5rem;
-            /* espaço para header fixo */
         }
 
         header {
@@ -131,7 +130,6 @@
             color: #212529;
         }
 
-        /* Botões paginação maiores */
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             padding: 6px 14px !important;
             border-radius: 8px !important;
@@ -152,7 +150,6 @@
             border-color: #868e96 !important;
         }
 
-        /* Responsividade */
         @media (max-width: 720px) {
             h2 {
                 font-size: 1.6rem;
@@ -189,18 +186,26 @@
                         <th>Pulseira</th>
                         <th>Tamanho Pulseira</th>
                         <th>Preço (R$)</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in dados %}
                     <tr>
-                        <td>{{ row[0] }}</td>
                         <td>{{ row[1] }}</td>
                         <td>{{ row[2] }}</td>
                         <td>{{ row[3] }}</td>
                         <td>{{ row[4] }}</td>
                         <td>{{ row[5] }}</td>
-                        <td>R$ {{ "%.2f"|format(row[6]) }}</td>
+                        <td>{{ row[6] }}</td>
+                        <td>R$ {{ "%.2f"|format(row[7]) }}</td>
+                        <td>
+                            <a href="{{ url_for('edit', id=row[0]) }}" class="btn btn-sm btn-warning">Editar</a>
+                            <form action="{{ url_for('delete', id=row[0]) }}" method="post" style="display:inline-block"
+                                onsubmit="return confirm('Tem certeza que deseja deletar este registro?');">
+                                <button type="submit" class="btn btn-sm btn-danger">Deletar</button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
