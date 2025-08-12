@@ -12,6 +12,10 @@ CREATE TABLE IF NOT EXISTS historico_precos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     data TEXT NOT NULL,
     produto TEXT NOT NULL,
+    caixa TEXT,
+    tamanho TEXT,
+    pulseira TEXT,
+    tamanho_pulseira TEXT,
     preco REAL NOT NULL
 )
 """)
@@ -24,9 +28,27 @@ headers = {
 }
 
 response = requests.get(url, headers=headers)
-soup = BeautifulSoup(response.content, 'lxml')
+soup = BeautifulSoup(response.content, 'html.parser')
+
 nome_tag = soup.find('h1', class_='ui-pdp-title')
-nome = nome_tag.get_text(strip=True) if nome_tag else 'Nome não encontrado'
+nome_bruto = nome_tag.get_text(strip=True) if nome_tag else 'Nome não encontrado'
+
+partes = [p.strip() for p in nome_bruto.split("•")]
+
+produto = partes[0] if len(partes) > 0 else ""
+caixa_info = partes[1] if len(partes) > 1 else ""
+pulseira_info = partes[2] if len(partes) > 2 else ""
+
+if "–" in caixa_info:
+    caixa, tamanho = [x.strip() for x in caixa_info.split("–", 1)]
+else:
+    caixa, tamanho = caixa_info, ""
+
+if "–" in pulseira_info:
+    pulseira, tamanho_pulseira = [x.strip() for x in pulseira_info.split("–", 1)]
+else:
+    pulseira, tamanho_pulseira = pulseira_info, ""
+
 preco_meta = soup.find('meta', itemprop='price')
 if preco_meta and preco_meta.get('content'):
     preco = float(preco_meta['content'])
@@ -36,10 +58,13 @@ else:
 agora = datetime.now(pytz.timezone('America/Sao_Paulo'))
 data = agora.strftime('%d/%m/%Y %H:%M:%S')
 
-cursor.execute("INSERT INTO historico_precos (data, produto, preco) VALUES (?, ?, ?)", (data, nome, preco))
+cursor.execute("""
+INSERT INTO historico_precos (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+""", (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco))
 conn.commit()
 
-print(f"{data} | {nome} | R$ {preco:.2f}")
+print(f"{data} | {produto} | {caixa} | {tamanho} | {pulseira} | {tamanho_pulseira} | R$ {preco:.2f}")
 
 preco_alvo = 3500.00
 if preco != 0.00 and preco < preco_alvo:
