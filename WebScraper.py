@@ -39,6 +39,12 @@ produto = partes[0] if len(partes) > 0 else ""
 caixa_info = partes[1] if len(partes) > 1 else ""
 pulseira_info = partes[2] if len(partes) > 2 else ""
 
+img_tag = soup.find('img', {'class': 'ui-pdp-image'})
+if img_tag and img_tag.get('src'):
+    imagem = img_tag['src']
+else:
+    imagem = ''
+
 if "–" in caixa_info:
     caixa, tamanho = [x.strip() for x in caixa_info.split("–", 1)]
 else:
@@ -59,9 +65,9 @@ agora = datetime.now(pytz.timezone('America/Sao_Paulo'))
 data = agora.strftime('%d/%m/%Y %H:%M:%S')
 
 cursor.execute("""
-INSERT INTO historico_precos (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-""", (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco))
+INSERT INTO historico_precos (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco, imagem)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+""", (data, produto, caixa, tamanho, pulseira, tamanho_pulseira, preco, imagem))
 conn.commit()
 
 print(f"{data} | {produto} | {caixa} | {tamanho} | {pulseira} | {tamanho_pulseira} | R$ {preco:.2f}")
